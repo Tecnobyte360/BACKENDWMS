@@ -3,27 +3,35 @@
 namespace App\Http\Controllers\ApisLolocal\Autenticacion;
 
 use App\Http\Controllers\Controller;
-use App\Models\Role;
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use App\Services\ApisLolocal\Autenticacion\UserService;
+use Illuminate\Validation\ValidationException;
 
 class Usuarioscontroller extends Controller
 {
-    // Listar todos los usuarios con sus roles
+    protected UserService $userService;
+
+    public function __construct(UserService $userService)
+    {
+        $this->userService = $userService;
+    }
+
     public function index()
     {
         try {
-            $usuarios = User::with('roles')->get();
+            $usuarios = $this->userService->getAllUsers();
 
             if ($usuarios->isEmpty()) {
-                throw new \Exception('No hay usuarios registrados en el sistema.');
+                return response()->json([
+                    'message' => 'No hay usuarios registrados en el sistema.'
+                ], 404);
             }
 
             return response()->json([
                 'message' => 'Usuarios obtenidos correctamente.',
                 'data' => $usuarios
             ], 200);
+
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Ocurrió un error al obtener los usuarios.',
@@ -32,46 +40,24 @@ class Usuarioscontroller extends Controller
         }
     }
 
-    // Crear nuevo usuario
     public function store(Request $request)
     {
         try {
             $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'email' => 'required|email|unique:users,email',
-                'password' => 'required|string|min:6|max:255',
+                'name'         => 'required|string|max:255',
+                'email'        => 'required|email|unique:users,email',
+                'password'     => 'required|string|min:6|max:255',
                 'selectedRole' => 'required|exists:roles,id',
-            ], [
-                'name.required' => 'El nombre es obligatorio.',
-                'name.string' => 'El nombre debe ser una cadena de texto.',
-                'name.max' => 'El nombre no debe exceder los 255 caracteres.',
-                'email.required' => 'El correo electrónico es obligatorio.',
-                'email.email' => 'El formato del correo electrónico no es válido.',
-                'email.unique' => 'Este correo ya está registrado.',
-                'password.required' => 'La contraseña es obligatoria.',
-                'password.string' => 'La contraseña debe ser una cadena de texto.',
-                'password.min' => 'La contraseña debe tener al menos 6 caracteres.',
-                'password.max' => 'La contraseña no debe exceder los 255 caracteres.',
-                'selectedRole.required' => 'Debe seleccionar un rol.',
-                'selectedRole.exists' => 'El rol seleccionado no es válido.',
             ]);
 
-            $user = User::create([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-                'activo' => true,
-            ]);
-
-            if (!$user->assignRole((int) $validated['selectedRole'])) {
-                throw new \Exception('No se pudo asignar el rol al usuario.');
-            }
+            $user = $this->userService->createUser($validated);
 
             return response()->json([
                 'message' => 'Usuario creado correctamente',
-                'user' => $user->load('roles')
+                'user' => $user
             ], 201);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+
+        } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Error de validación.',
                 'errors' => $e->errors()
@@ -84,47 +70,23 @@ class Usuarioscontroller extends Controller
         }
     }
 
-    // Editar usuario
     public function update(Request $request, $id)
     {
         try {
             $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'email' => "required|email|unique:users,email,{$id}",
-                'selectedRole' => 'required|integer',
-            ], [
-                'name.required' => 'El nombre es obligatorio.',
-                'name.string' => 'El nombre debe ser una cadena de texto.',
-                'name.max' => 'El nombre no debe exceder los 255 caracteres.',
-                'email.required' => 'El correo electrónico es obligatorio.',
-                'email.email' => 'El formato del correo no es válido.',
-                'email.unique' => 'Este correo ya está en uso por otro usuario.',
-                'selectedRole.required' => 'Debe seleccionar un rol.',
-                'selectedRole.integer' => 'El ID del rol debe ser un número entero.',
+                'name'         => 'required|string|max:255',
+                'email'        => "required|email|unique:users,email,{$id}",
+                'selectedRole' => 'required|exists:roles,id',
             ]);
 
-            $rol = Role::find((int) $validated['selectedRole']);
-            if (!$rol) {
-                throw new \Exception('El rol seleccionado no existe en el sistema.');
-            }
-
-            $user = User::find($id);
-            if (!$user) {
-                throw new \Exception("El usuario no existe o no está disponible.");
-            }
-
-            $user->update([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-            ]);
-
-            $user->syncRoles([$rol->id]);
+            $user = $this->userService->updateUser((int) $id, $validated);
 
             return response()->json([
                 'message' => 'Usuario actualizado correctamente.',
-                'user' => $user->load('roles')
+                'user' => $user
             ], 200);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+
+        } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Error de validación.',
                 'errors' => $e->errors()
@@ -137,32 +99,20 @@ class Usuarioscontroller extends Controller
         }
     }
 
-
-    // Cambiar contraseña
     public function updatePassword(Request $request, $id)
     {
         try {
             $validated = $request->validate([
                 'password' => 'required|string|min:8|confirmed',
-            ], [
-                'password.required' => 'La contraseña es obligatoria.',
-                'password.confirmed' => 'La confirmación de la contraseña no coincide.',
-                'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             ]);
 
-            $user = User::find($id);
-
-            if (!$user) {
-                throw new \Exception("El usuario no existe o no está disponible.");
-            }
-
-            $user->password = Hash::make($validated['password']);
-            $user->save();
+            $this->userService->updatePassword((int) $id, $validated['password']);
 
             return response()->json([
                 'message' => 'Contraseña actualizada correctamente.'
             ], 200);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+
+        } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Error de validación.',
                 'errors' => $e->errors()
@@ -175,31 +125,22 @@ class Usuarioscontroller extends Controller
         }
     }
 
+    public function toggleEstado($id)
+    {
+        try {
+            $user = $this->userService->toggleEstado((int) $id);
 
-    // Activar o desactivar usuario
-   public function toggleEstado($id)
-{
-    try {
-        $user = User::find($id);
+            return response()->json([
+                'message' => 'Estado actualizado correctamente.',
+                'estado'  => $user->activo ? 'Activo' : 'Inactivo',
+                'activo'  => $user->activo
+            ], 200);
 
-        if (!$user) {
-            throw new \Exception("El usuario no existe o no está disponible.");
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Ocurrió un error al actualizar el estado del usuario.',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $user->activo = !$user->activo;
-        $user->save();
-
-        return response()->json([
-            'message' => 'Estado actualizado correctamente.',
-            'estado' => $user->activo ? 'Activo' : 'Inactivo',
-            'activo' => $user->activo
-        ], 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'message' => 'Ocurrió un error al actualizar el estado del usuario.',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
-
 }
