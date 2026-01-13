@@ -8,11 +8,10 @@ use App\Http\Controllers\ApisLolocal\Autenticacion\Usuarioscontroller;
 use App\Http\Controllers\ApisLolocal\Seguridad\{RoleController, PermissionController, RolePermissionController};
 
 
-
 Route::post('/login', [LoginSanctumController::class, 'login']);
 Route::post('/logout', [LoginSanctumController::class, 'logout'])->middleware('auth:sanctum');
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum','http.permission'])->group(function () {
     Route::get('/user', fn(Request $request) => $request->user());
 
     Route::get('/usuarios', [Usuarioscontroller::class, 'index']);
@@ -22,7 +21,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/usuarios/{id}/estado', [Usuarioscontroller::class, 'toggleEstado']);
 });
 
-Route::middleware('auth:sanctum')->prefix('roles')->group(function () {
+Route::middleware(['auth:sanctum','http.permission'])->prefix('roles')->group(function () {
     Route::get('/', [RoleController::class, 'index']);
     Route::post('/', [RoleController::class, 'store']);
     Route::get('/{id}', [RoleController::class, 'show']);
@@ -31,7 +30,7 @@ Route::middleware('auth:sanctum')->prefix('roles')->group(function () {
 });
 
 
-Route::middleware('auth:sanctum')->prefix('permisos')->group(function () {
+Route::middleware(['auth:sanctum','http.permission'])->prefix('permisos')->group(function () {
     Route::get('/', [PermissionController::class, 'index']);
     Route::post('/', [PermissionController::class, 'store']);
     Route::get('/{id}', [PermissionController::class, 'show']);
@@ -39,8 +38,8 @@ Route::middleware('auth:sanctum')->prefix('permisos')->group(function () {
     Route::delete('/{id}', [PermissionController::class, 'destroy']);
 });
 
-Route::prefix('roles/{roleId}/permisos')->middleware('auth:sanctum')->group(function () {
-    Route::get('/', [RolePermissionController::class, 'index']);         
-    Route::put('/', [RolePermissionController::class, 'update']);        
+Route::middleware(['auth:sanctum','http.permission'])->prefix('roles/{roleId}/permisos')->group(function () {
+    Route::get('/', [RolePermissionController::class, 'index']);
+    Route::put('/', [RolePermissionController::class, 'update']);
     Route::delete('/{permissionId}', [RolePermissionController::class, 'destroy']);
 });

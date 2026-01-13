@@ -4,98 +4,66 @@ namespace App\Http\Controllers\ApisLolocal\Seguridad;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Services\ApisLolocal\Seguridad\RoleService;
-use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 
 class RoleController extends Controller
 {
-    protected RoleService $roleService;
-
-    public function __construct(RoleService $roleService)
-    {
-        $this->roleService = $roleService;
-    }
-
     public function index()
     {
-        return response()->json($this->roleService->getAllRoles());
+        return Role::with('permissions')->get();
     }
 
     public function store(Request $request)
     {
-        try {
-            $validated = $request->validate([
-                'name' => 'required|unique:roles,name',
-                'description' => 'nullable|string',
-                'permissions' => 'nullable|array'
-            ]);
+        $request->validate([
+            'name' => 'required|unique:roles,name',
+            'description' => 'nullable|string',
+            'permissions' => 'array'
+        ]);
 
-            $role = $this->roleService->createRole($validated);
+        $role = Role::create([
+            'name' => $request->name,
+            'guard_name' => 'web',
+            'description' => $request->description
+        ]);
 
-            return response()->json(['message' => 'Rol creado', 'role' => $role], 201);
+        $role->syncPermissions($request->permissions);
 
-        } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error al crear el rol',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json(['message' => 'Rol creado', 'role' => $role->load('permissions')], 201);
     }
 
     public function show($id)
     {
-        try {
-            $role = $this->roleService->getRoleById((int) $id);
-            return response()->json($role);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error al obtener el rol',
-                'error' => $e->getMessage()
-            ], 404);
-        }
+        $role = Role::with('permissions')->findOrFail($id);
+        return $role;
     }
 
     public function update(Request $request, $id)
     {
-        try {
-            $validated = $request->validate([
-                'name' => 'required|unique:roles,name,' . $id,
-                'description' => 'nullable|string',
-                'permissions' => 'nullable|array'
-            ]);
+        $role = Role::findOrFail($id);
 
-            $role = $this->roleService->updateRole((int) $id, $validated);
+        $request->validate([
+            'name' => 'required|unique:roles,name,' . $role->id,
+            'description' => 'nullable|string',
+            'permissions' => 'array'
+        ]);
 
-            return response()->json(['message' => 'Rol actualizado', 'role' => $role]);
+        $role->update([
+            'name' => $request->name,
+            'description' => $request->description
+        ]);
 
-        } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error al actualizar el rol',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        $role->syncPermissions($request->permissions);
+
+        return response()->json(['message' => 'Rol actualizado', 'role' => $role->load('permissions')]);
     }
 
     public function destroy($id)
     {
-        try {
-            $this->roleService->deleteRole((int) $id);
-            return response()->json(['message' => 'Rol eliminado']);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error al eliminar el rol',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        $role = Role::findOrFail($id);
+        $role->delete();
+
+        return response()->json(['message' => 'Rol eliminado']);
     }
 }

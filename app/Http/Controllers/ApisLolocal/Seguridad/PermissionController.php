@@ -4,21 +4,17 @@ namespace App\Http\Controllers\ApisLolocal\Seguridad;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Services\ApisLolocal\Seguridad\PermissionService;
+use Spatie\Permission\Models\Permission;
 use Illuminate\Validation\ValidationException;
 
 class PermissionController extends Controller
 {
-    protected PermissionService $permissionService;
-
-    public function __construct(PermissionService $permissionService)
-    {
-        $this->permissionService = $permissionService;
-    }
-
     public function index()
     {
-        return response()->json($this->permissionService->getAll());
+        // Listar todos los permisos
+        $permissions = Permission::all();
+
+        return response()->json($permissions);
     }
 
     public function store(Request $request)
@@ -29,7 +25,11 @@ class PermissionController extends Controller
                 'description' => 'nullable|string',
             ]);
 
-            $permission = $this->permissionService->create($validated);
+            $permission = Permission::create([
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+                'guard_name' => 'web', // asegúrate que tu app use este guard
+            ]);
 
             return response()->json([
                 'message' => 'Permiso creado',
@@ -52,7 +52,7 @@ class PermissionController extends Controller
     public function show($id)
     {
         try {
-            $permission = $this->permissionService->getById((int) $id);
+            $permission = Permission::findOrFail($id);
             return response()->json($permission);
         } catch (\Exception $e) {
             return response()->json([
@@ -70,13 +70,16 @@ class PermissionController extends Controller
                 'description' => 'nullable|string',
             ]);
 
-            $permission = $this->permissionService->update((int) $id, $validated);
+            $permission = Permission::findOrFail($id);
+            $permission->update([
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+            ]);
 
             return response()->json([
                 'message' => 'Permiso actualizado',
                 'permission' => $permission
             ]);
-
         } catch (ValidationException $e) {
             return response()->json([
                 'message' => 'Error de validación',
@@ -93,7 +96,8 @@ class PermissionController extends Controller
     public function destroy($id)
     {
         try {
-            $this->permissionService->delete((int) $id);
+            $permission = Permission::findOrFail($id);
+            $permission->delete();
 
             return response()->json(['message' => 'Permiso eliminado']);
         } catch (\Exception $e) {
