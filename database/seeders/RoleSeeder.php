@@ -10,8 +10,14 @@ class RoleSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin = Role::firstOrCreate(['name' => 'Administrador']);
+        $admin = Role::firstOrCreate(
+            ['name' => 'Administrador'],
+            ['guard_name' => 'web']
+        );
         $allPermissions = Permission::pluck('name')->toArray();
         $admin->syncPermissions($allPermissions);
+
+        $this->command->info('✓ Rol Administrador creado/actualizado');
+        $this->command->info('✓ Permisos asignados: ' . count($allPermissions));
     }
 }

@@ -31,6 +31,9 @@ class LoginSanctumController extends Controller
             $token = $user->createToken('lolocal-token')->plainTextToken;
             $expiration = config('sanctum.expiration');
 
+            // Obtener todos los permisos del usuario a través de sus roles
+            $permissions = $user->getAllPermissions()->pluck('name')->toArray();
+
             return response()->json([
                 'message' => 'Autenticación exitosa.',
                 'token' => $token,
@@ -39,6 +42,7 @@ class LoginSanctumController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'roles' => $user->getRoleNames()->toArray(),
+                    'permissions' => $permissions,
                 ],
                 'expires_in' => $expiration ? $expiration * 60 : null,
                 'expires_at' => $expiration ? now()->addMinutes($expiration)->toIso8601String() : null
