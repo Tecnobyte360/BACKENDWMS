@@ -1,11 +1,10 @@
 <?php
 
-use App\Http\Controllers\ApisLolocal\Autenticacion\LoginSanctumController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-use App\Http\Controllers\ApisLolocal\Autenticacion\Usuarioscontroller;
-use App\Http\Controllers\ApisLolocal\Seguridad\{RoleController, PermissionController, RolePermissionController};
+use App\Http\Controllers\Api\Autenticacion\{Usuarioscontroller, LoginSanctumController};
+use App\Http\Controllers\Api\Seguridad\{RoleController, PermissionController, RolePermissionController};
 
 
 Route::post('/login', [LoginSanctumController::class, 'login']);

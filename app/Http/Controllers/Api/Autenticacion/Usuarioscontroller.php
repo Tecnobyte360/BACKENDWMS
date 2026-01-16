@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\ApisLolocal\Autenticacion;
+namespace App\Http\Controllers\Api\Autenticacion;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;

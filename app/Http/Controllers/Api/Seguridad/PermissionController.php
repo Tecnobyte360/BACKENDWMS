@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\ApisLolocal\Seguridad;
+namespace App\Http\Controllers\Api\Seguridad;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
